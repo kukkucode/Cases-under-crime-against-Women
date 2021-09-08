@@ -1,0 +1,449 @@
+---
+title: "Cases under Crime against Women"
+author: "Pooja (204161012)"
+date: "4/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+```{r Libraries, warning = FALSE, message=FALSE, echo=FALSE}
+library(directlabels)
+library(dplyr)
+library(extrafont)
+library(ggplot2)
+library(fmsb)
+library(scales)
+library(BBmisc)
+library(RColorBrewer)
+library(treemapify)
+library(evaluate)
+library(ggmap)
+library(maps)
+library(rgdal)
+library(maptools)
+library(gridExtra)
+library(rgeos)
+library(mapproj)
+library(plotly)
+library(hrbrthemes)
+library(CGPfunctions)
+library(gganimate)
+library(gapminder)
+library(ggthemes)
+```
+
+# **1. Motivation :**
+
+We all know that women safety is at very bad condition or we can say the condition of women in this country is deteriorating at a very rapid pace. There is a list of crimes that are happening with women in India on regular basis given below : 
+
+     Rape
+     Kidnapping and Abduction of Women
+     Dowry Deaths
+     Molestation
+     Sexual Harassment
+     Cruelty by Husband and Relatives
+     Importation of Girls
+
+In this report we are going to perform Exploratory Data Analysis on crimes against Women in India. The actual number of crimes which are taking place are much higher than the one being registered. Keeping in mind that our report can only focus on the crime which are being registered to the authority. 
+
+Now the another problem is that, that all the cases which are being registered are not handled properly by the assigned authorities. In some cases investigation are not done properly, some cases are just delayed by the higher authority, some are just being withdrawn due to some external or internal pressure and there are many more. We will be covering the quantitative analysis of these types of cases in our report. 
+
+# **2. Objective :**
+
+The objective of this project is to show the cases which are being registered. And showing the progress over those cases.
+There are some questions I'm going to answer :
+
+      Visualization of crimes State wise and Year wise.
+      Type of crimes are happening against women.
+      Visualization of reported cases and Convicted cases.
+      Visualization of Investigated cases and not investigated cases.
+      Which state is safest for women by analysing the data?
+      If crimes are increasing or decreasing by analysing the data.
+      Which particular crime is increasing in which state
+
+This dataset has been taken from kaggle. This dataset contains complete information about crimes against women happened in India from 2001 to 2010. It contains one file which has 21 columns and 4166 rows.
+
+```{r data_read, echo=FALSE}
+file <- read.csv("Cases_under_crime_against_women.csv")
+```
+
+```{r deleted_columns, echo=FALSE}
+file1 <- file
+
+file1 <- subset(file1, select = -Sub_Group_Name)
+file1 <- subset(file1, select = -Cases_Pending_Investigation_from_previous_year)
+file1 <- subset(file1, select = -Cases_Pending_Trial_from_the_previous_year)
+file1 <- subset(file1, select = -Cases_withdrawn_by_the_Govt_during_investigation)
+file1 <- subset(file1, select = -X)
+```
+
+
+```{r renaming, echo=FALSE}
+file2 <- file1
+
+file2 <- file2 %>% rename (
+  States.UT = ï..Area_Name,
+  Crimes = Group_Name,
+  Discharged.Cases = Cases_Acquitted_or_Discharged,
+  Cases.with.Final.Report.Submitted = Cases_charge_sheets_were_not_laid_but_Final_Report_submitted,
+  Cases.Chargesheeted = Cases_Chargesheeted,
+  Withdrawn.Cases = Cases_Compounded_or_Withdrawn,
+  Convicted.Cases = Cases_Convicted,
+  Caese.Declared.False = Cases_Declared_False_on_Account_of_Mistake_of_Fact_or_of_Law,
+  Cases.Investigation.FIR.Submitted = Cases_Investigated_Chargesheets.FR_Submitted,
+  Cases.not.Investigated = Cases_not_Investigated_or_in_which_investigation_was_refused,
+  Cases.Pending.Investigation = Cases_Pending_Investigation_at_Year_End,
+  Cases.Pending.Trial = Cases_Pending_Trial_at_Year_End,
+  Reported.Cases = Cases_Reported,
+  Cases.Sent.for.Trial = Cases_Sent_for_Trial,
+  Cases.Trial.Completed = Cases_Trials_Completed,
+  Cases.Withdrawn.by.the.Govt = Cases_Withdrawn_by_the_Govt,
+  Total.Cases.for.Trial = Total_Cases_for_Trial
+  )
+```
+
+
+```{r removing_some_rows, echo=FALSE}
+file2 <- file2 %>% filter(Crimes == "Rape" | Crimes == "Dowry Deaths" | Crimes == "Sexual harassment" | Crimes == "Kidnapping & Abduction - Women & Girls" | Crimes == "Molestation" | Crimes == "Cruelty by Husband and Relative")
+```
+
+## Plot 1 : Spatial Plot
+
+## Reason : 
+
+We use spatial plots for geographical visualization of the data. We have used different color densities to differentiate the crime cases in the states which were considered for trial. Basically these plots are used in maps.
+
+## Observation :
+
+I have used India map to show our observation. As we can see in the map, the the darkest color is showing the state which is highly committed for crimes. And lightest color is showing the state which is not that bad for women.
+
+```{r,, echo=FALSE}
+map.data <- file2 %>% group_by(States.UT) %>% summarize(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+map.data <- rbind(map.data, c("Telangana", as.numeric(mean(as.numeric(map.data$Total.Cases.for.Trial)))))
+map.data <- map.data[order(map.data$States.UT),]
+#map.data
+```
+
+```{r, include=FALSE, warning=FALSE,  echo=FALSE, message=FALSE}
+states_shape = rgdal::readOGR("./IND_adm/IND_adm1.shp")
+States_shape2 = readOGR("./IND_adm","IND_adm1")
+fortify_shape = fortify(states_shape, region = "ID_1")
+```
+
+```{r, include=FALSE, warning=FALSE, echo=FALSE}
+total.trial.cases = as.double(map.data$Total.Cases.for.Trial)
+State_data = data.frame(id=states_shape$ID_1, NAME_1=states_shape$NAME_1, total.trial.cases)
+```
+
+```{r, fig.width=8,   fig.height=12, warning=FALSE, echo=FALSE}
+fortify_shape = fortify(states_shape, region = "ID_1")
+class(fortify_shape)
+
+Merged_data = merge(fortify_shape, State_data, by="id", all.x=TRUE)
+Map_plot = Merged_data[order(Merged_data$order), ]
+
+ggplot() +
+  geom_polygon(data = Map_plot,
+           	aes(x = long, y = lat, group = group, fill = total.trial.cases), size = 0.5) +
+  coord_map() +  scale_fill_gradient(low="white", high="magenta") + labs(x = "Longitude", y = "Latitude", title = "Total Cases for Trial")
+```
+By looking at the graph We can tell the crime cases are highly active in Maharashtra.
+
+
+# Plot 2 : Pi chart
+
+## Reason :
+
+In this problem we need to show the composition of crime percentage in India from 2001 to 2010. Generally we use pie-chart to show percentage or proportional data.
+
+## Observations :
+
+In the following pie chart, we can observe that which crime is highly committed in India. It is a standard pie chart which is showing every crime with different colors. To use this chart we had to install additional package of r ‘plotly’ instead standard package ggplot2. 
+
+```{r warning=FALSE, fig.width=7, fig.height=7,  warning=FALSE,  echo=FALSE}
+map.data1 <- file2 %>% group_by(Crimes) %>% summarize(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+#map.data1
+fig <- map.data1 %>% 
+       plot_ly(labels = ~Crimes, values = ~Total.Cases.for.Trial,
+               type = 'pie',
+               textposition = 'inside',
+               textinfo = 'label+percent',
+               showlegend = FALSE) %>%
+  layout(title = "Type of Crimes")
+fig
+```
+
+Just by observing our plot we can say "Molestation" is highly committed crime in India. Then Rape and so on.
+
+
+### Distribution on State Basis :
+
+```{r warning=FALSE, fig.width=7, fig.height=7,  warning=FALSE,  echo=FALSE}
+#Donut Chart on states
+map.data2 <- file2 %>% group_by(States.UT) %>% summarize(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+#map.data1
+fig <- map.data2 %>% 
+       plot_ly(labels = ~States.UT, values = ~Total.Cases.for.Trial,
+               type = 'pie',
+               textposition = 'inside',
+               textinfo = 'label+percent',
+               showlegend = FALSE)
+fig
+```
+
+Here we can see Maharashtra is on top. Then West Bengal and so on.
+
+# Plot 3 : TreeMap
+
+## Reason :
+
+A treemap is used for “displaying hierarchical data using nested figures, usually rectangles.”
+I had to install additional package "treemapify" along with ggplot2.
+
+## Observations : 
+
+The treemap bassically have several levels. We have some groups, each containing several subgroups. There are specification of levels according to importance :
+          group > sub-group > sub-subgroup
+
+
+```{r,  warning=FALSE,  echo=FALSE}
+temp <- file2 %>% select(Crimes, Total.Cases.for.Trial) %>% group_by(Crimes) %>% summarise(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+
+temp$Total.Cases.for.Trial <- as.double(temp$Total.Cases.for.Trial)
+temp <- as.data.frame(temp)
+
+
+colnames(temp) <- c("State", "Total")
+ggplot(temp, aes(area = Total, fill = Total, label = State)) +
+geom_treemap() +
+geom_treemap_text(fontface = "italic", colour = "black", place = "centre", grow = TRUE) + 
+  scale_fill_gradient(low="white", high="pink")
+```
+
+I have used this plot to confirm our observations. Now we have confirmed that Molestation is the highly committed crime.
+
+### State wise Crime : 
+
+```{r ,  warning=FALSE,  echo=FALSE}
+temp <- file2 %>% select(States.UT, Total.Cases.for.Trial) %>% group_by(States.UT) %>% summarise(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+
+temp$Total.Cases.for.Trial <- as.double(temp$Total.Cases.for.Trial)
+temp <- as.data.frame(temp)
+
+
+colnames(temp) <- c("State", "Total")
+ggplot(temp, aes(area = Total, fill = Total, label = State)) +
+geom_treemap() +
+geom_treemap_text(fontface = "italic", colour = "black", place = "centre", grow = TRUE) + 
+  scale_fill_gradient(low="white", high="pink")
+```
+
+By using treeMap, we can see which state is not safe for Women.
+Like Maharashtra is the state where crimes cases are being registered is much more higher than  any other states.
+
+# Plot 4 : Bar Chart
+
+## Reason : 
+
+Basically we use bar chart to compare total number of cases against every categories among every state and union territories. For comparing the data among different categories we can use bar because they can show the data variation between the categories very clearly.
+
+## Observation :
+
+In the bar plot, we are showing the total number crime cases which are being registered by higher authority. Crime cases includes cases like Rape, Molestation, Dowry Deaths, Cruelty by husband and relatives and Sexual Harassment. x- axis is showing the all states and union territories. y-axis is showing the total number of cases. By observing the bar chart we can see :
+      
+      Maharashtra has highest number of registered crime cases.
+      Lakshadweep has lowest number of registered crime cases.
+      We can check top five states which are not safe for women.
+      
+      
+### Total cases for Trial : 
+
+This bar chart is showing thise crime cases which were considered for trial :
+
+```{r,fig.width=12, fig.height=10,  warning=FALSE,  echo=FALSE}
+temp <- file2 %>% select(States.UT, Total.Cases.for.Trial) %>% group_by(States.UT) %>% summarise(Total.Cases.for.Trial = sum(Total.Cases.for.Trial))
+
+
+ggplot(data = temp) + 
+geom_bar(mapping = aes(x = Total.Cases.for.Trial, y = States.UT) , fill = "black", stat='identity', position = position_dodge(width=0.01),size = 2.5,  width=0.4) + 
+labs(y="State", x = "Total number of crimes committed", title = "Crimes Summary") +  theme(text=element_text(size=12,  family="serif")) + 
+geom_text(aes(x = Total.Cases.for.Trial, y = States.UT, label = Total.Cases.for.Trial, hjust = -0.1))
+
+```
+
+### Total Reported Cases : 
+
+This bar chart is showing the cases which were reported :
+
+```{r,fig.width=12, fig.height=8, warning=FALSE,  echo=FALSE}
+temp <- file2 %>% select(Crimes, Reported.Cases) %>% group_by(Crimes) %>% summarise(Reported.Cases = sum(Reported.Cases))
+
+
+ggplot(data = temp) + 
+geom_bar(mapping = aes(x = Reported.Cases, y = Crimes),fill = 'pink', stat='identity', position = position_dodge(width=0.01),size = 2.5,  width=0.2) + 
+labs(y="State", x = "Total number of cases Reported", title = "Reported Cases") +  theme(text=element_text(size=12,  family="serif")) + 
+geom_text(aes(x = Reported.Cases, y = Crimes, label = Reported.Cases, hjust =-0.1))
+
+```
+
+Now we can see the total number of reported cases for crimes like rape, molestation and so on.
+
+### Total Convicted Cases :
+
+This bar chart is showing the cases which were convicted :
+
+```{r, fig.width=12, fig.height=8,  warning=FALSE,  echo=FALSE}
+temp <- file2 %>% select(Crimes, Convicted.Cases) %>% group_by(Crimes) %>% summarise(Convicted.Cases = sum(Convicted.Cases))
+
+
+ggplot(data = temp) + 
+geom_bar(mapping = aes(x = Convicted.Cases, y = Crimes),fill = 'pink', stat='identity', position = position_dodge(width=0.01),size = 2.5,  width=0.2) + 
+labs(y="State", x = "Total number of cases Convicted", title = "Convicted Cases") +  theme(text=element_text(size=12,  family="serif")) + 
+geom_text(aes(x = Convicted.Cases, y = Crimes, label = Convicted.Cases, hjust =-0.1))
+
+```
+
+# Plot 5 : Connected Scattered Plot 
+
+## Reason :
+
+This plot we are using to show the number of registered cases against Women in every States and Union Territories. we are using the connected scatter plot because we need to displaying the evolution in number of cases and to see the trend of the data if it is increasing or decreasing.
+
+## Observations : 
+
+In the scattered Plot, x-axis is showing the Crimes and y-axis is showing the total cases which were considered for trial.
+
+```{r, fig.width=12, fig.height=10, echo=FALSE}
+ggplot(file2,aes(Crimes, Total.Cases.for.Trial)) + 
+  geom_point() + geom_line(aes(group=1)) +
+  theme(axis.text.x = element_text(angle=80, vjust=0.6)) +
+  ggtitle("Crime Summary")
+```
+
+We have observed that Molestation is highly considered crime.
+
+# Plot 6 : Slope Plot 
+
+## Reason : 
+
+This plot we used to show the number of Rape cases against women for every year from 2001 - 2010 and we want to compare these value for time period so we can see the change in the graph that is showing before and after situation of every state , based on comparing their values at different time. The related values are connected by slopes. the slope show the change in the value.
+
+## Observation :
+
+We can observe, in 2001 the crime cases which were considered for trial were low in Madhya Pradesh, but in 2010 it increased rapidly. And in Andaman and Nikobar cases seems quite constant.
+
+### Satate wise Rape Cases :
+
+
+
+```{r, echo=FALSE}
+file3 <- file2
+
+file3 <- file3 %>% filter(file3$Crimes == "Rape")
+
+```
+
+
+```{r removing_rows_in_file1, echo=FALSE}
+file4 <- file3
+
+y <- c("2001", "2005", "2010")
+file4 <- file4 %>% filter(Year == "2001"| Year == "2005" | Year == "2010")
+
+```
+
+
+```{r, fig.width=12, fig.height=10, echo=FALSE}
+
+file4$Year <- as.character(file4$Year)
+newggslopegraph(dataframe = file4,
+                Times = Year,
+                Measurement = Convicted.Cases,
+                Grouping =States.UT,
+                Title = "States wise Rape cases",
+                SubTitle = "From year 2001 - 2010",
+                Caption = "States",
+                TitleTextSize = 14,
+                LineThickness = 1,
+                TitleJustify = "C",
+                SubTitleJustify = "C",
+                DataTextSize = 3)
+#str(file2)
+```
+
+# Plot 7 : Box Plot
+
+## Reason :
+
+I have used Box plot because it divides the data set into three quartiles. This graph represents the minimum, maximum, median, first quartile and third quartile in the data set. It is also useful in comparing the distribution of data across data sets by drawing boxplots for each of them. Boxplots are created in R by using the boxplot() function.
+
+## Observation : 
+
+x-axis is showing the States and union territories. y-axis is showing the number of crime cases that were considered for trial. And I have considered MOlestation crime.
+
+Here we can observe the Molestation crime is highly registered in Madhya Pradesh. And then Maharashtra and so on. And as usual Andaman and Nikobar , Dadra and Nagar Haweli, Goa and Lakshadweep are on lowest position.
+
+
+```{r, fig.width= 12, fig.height=10, echo=FALSE}
+temp <- file2 %>% filter(Crimes == "Molestation")
+temp1 <- temp %>% select(States.UT, Crimes, Total.Cases.for.Trial) 
+
+g <- ggplot(temp1, aes(States.UT, Total.Cases.for.Trial))
+g + geom_boxplot(aes(fill=Crimes)) + 
+  theme(axis.text.x = element_text(angle=80, vjust=0.6)) + 
+  labs(title="Box plot", 
+       subtitle="Total Molestation Cases",
+       caption="States",
+       x="Total States and Union Territories",
+       y="Number of Cases")
+```
+
+# Plot 8 : Line Chart
+
+## Reason : 
+
+When we have to show that upward and downward trend without focusing on final number then we have to use line chart.
+And the each color is showing the particular crime.
+
+## Observation :
+
+the x-axis is showing the all type of Crimes like Rape, Molestation, Cruelty by Husband and relatives , Importation of girls, Sexual harassment, Dowry Deaths and Kidnapping and Abduction and so on. 
+We can observe :
+          
+          The cruelty by husabnd and relatives are highly commited crimes.
+          And Dowry death cases are quite constant.
+
+
+```{r, fig.width=12,fig.height=10, message=FALSE, warning=F,  echo=FALSE}
+total_data <- file2 %>% select(Crimes, Year, Convicted.Cases) %>% group_by(Crimes, Year) %>% summarise(Convicted.Cases = sum(Convicted.Cases))
+
+ggplot(data = total_data, mapping = aes(x = Year, y = Convicted.Cases)) + geom_line(mapping = aes(color = Crimes), alpha = 0.9, size = 1.5, linetype = 1) + labs(title = "Total Crimes Scenario in India", x = "Year" , y = "Count") +theme_bw() +theme(legend.position="bottom") 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
